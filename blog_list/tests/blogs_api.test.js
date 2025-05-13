@@ -8,9 +8,8 @@ const api = supertest(app)
 
 const Blog = require('../models/blog');
 
-describe("blogs api tests", () => {
 
-    
+describe("blogs api test", () => {
     beforeEach(async () => {
         await Blog.deleteMany({})
         let blogObject = new Blog(helper.initialBlogs[0])
@@ -18,59 +17,7 @@ describe("blogs api tests", () => {
         blogObject = new Blog(helper.initialBlogs[1])
         await blogObject.save()
     })
-    
-    test("blogs are returned as json", async () => {
-        await api
-        .get("/api/blogs")
-        .expect(200)
-        .expect("Content-Type", /application\/json/)
-    })
-    
-    test("all blogs are returned", async () => {
-        const response = await api.get("/api/blogs")
-        
-        assert.strictEqual(response.body.length, helper.initialBlogs.length)
-    })
-    
-    test("there are two blogs", async () => {
-        const response = await api.get("/api/blogs")
-        assert.strictEqual(response.body.length, 2)
-    })
-    
-    test("a valid blog can be added", async () => {
-        const newBlog = {
-            title: "async/await simplifies making async calls",
-            author: "me",
-            url: "https://davidthebest.com",
-            likes: 999
-        }
-        
-        await api
-        .post("/api/blogs")
-        .send(newBlog)
-        .expect(201)
-        .expect("Content-Type", /application\/json/)
-        
-        const blogsAtEnd = await helper.blogsInDb()
-        assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length + 1)
-        
-        const contents = blogsAtEnd.map(b => b.title)
-        assert(contents.includes("async/await simplifies making async calls"))
-        
-    })
-    
-    test("blog without info is not added", async () => {
-        const newBlog = { }
-        
-        await api
-        .post("/api/blogs")
-        .send(newBlog)
-        .expect(400)    
-        
-        const blogsAtEnd = await helper.blogsInDb()
-        assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length)
-    })
-    
+
     test("blog id is named properly", async () => {
         
         const response = await api.get("/api/blogs")
@@ -86,6 +33,7 @@ describe("blogs api tests", () => {
             author: "ajm",
             url: "aaaaaaaaaaaaa"
         }
+    
         const res = await api
         .post("/api/blogs")
         .send(blogWithNoLikes)
@@ -95,7 +43,111 @@ describe("blogs api tests", () => {
         assert.strictEqual(res.body.likes, 0)
     })
     
-    after(async () => {
-        await mongoose.connection.close()
+    describe("when there is initially some blogs saved", () => {    
+        test("blogs are returned as json", async () => {
+            await api
+            .get("/api/blogs")
+            .expect(200)
+            .expect("Content-Type", /application\/json/)
+        })
+        
+        test("all blogs are returned", async () => {
+            const response = await api.get("/api/blogs")
+            
+            assert.strictEqual(response.body.length, helper.initialBlogs.length)
+        })
+        
+        test("a specific blog is in the returned blogs", async () => {
+            const res = await api.get("/api/blogs")
+    
+            const titles = res.body.map(b => b.title)
+            assert(titles.includes("React patterns"))
+        })
     })
+
+    describe("viewing a specific blog", () => {
+        test("succeds with a valid id", async () => {
+            const blogsAtStart = await helper.blogsInDb()
+            const blogToView = blogsAtStart[0]
+    
+            const resultBlog = await api
+                .get(`/api/blogs/${blogToView.id}`)
+                .expect(200)
+                .expect("Content-Type", /application\/json/)
+            
+            assert.deepStrictEqual(resultBlog.body, blogToView)
+        })
+    
+        test("fails with status 404 if id doesnt exist", async () => {
+            const validNoExistingID = await helper.nonExistingId()
+    
+            await api
+            .get(`/api/blogs/${validNoExistingID}`)
+            .expect(404)
+        })
+        
+        test("fails with status 400 if id is invalid", async () => {
+            const nonValidID = "888sdh3h7d39h7d"
+            
+            await api
+                .get(`/api/blogs/${nonValidID}`)
+                .expect(400)
+        })
+    })
+
+    describe("adding a new blog", () => {
+        test("succeds with valid data", async () => {
+            const newBlog = {
+                title: "async/await simplifies making async calls",
+                author: "me",
+                url: "https://davidthebest.com",
+                likes: 999
+            }
+            
+            await api
+            .post("/api/blogs")
+            .send(newBlog)
+            .expect(201)
+            .expect("Content-Type", /application\/json/)
+            
+            const blogsAtEnd = await helper.blogsInDb()
+            assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length + 1)
+            
+            const contents = blogsAtEnd.map(b => b.title)
+            assert(contents.includes("async/await simplifies making async calls"))
+        })
+
+        test("fails with status 400 if invalid data", async () => {
+            const newBlog = { }
+            
+            await api
+            .post("/api/blogs")
+            .send(newBlog)
+            .expect(400)    
+            
+            const blogsAtEnd = await helper.blogsInDb()
+            assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length)
+        })
+    })
+
+    describe("deletion of a blog", () => {
+        test("succeds with status 204 if id is valid", async () => {
+            const blogsAtStart = await helper.blogsInDb()
+            const blogToDelete = blogsAtStart[0]
+
+            await api
+                .delete(`/api/blogs/${blogToDelete.id}`)
+                .expect(204)
+
+            const blogsAtEnd = await helper.blogsInDb()
+            assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length -1)
+            
+            const contents = blogsAtEnd.map(b => b.title)
+            assert(!contents.includes(blogToDelete.title))
+        })
+    })
+});
+
+after(async () => {
+    await mongoose.connection.close()
 })
