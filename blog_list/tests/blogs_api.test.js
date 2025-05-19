@@ -146,6 +146,61 @@ describe("blogs api test", () => {
             assert(!contents.includes(blogToDelete.title))
         })
     })
+
+    describe("updating blog", () => {
+        test("succeeds with status 200 and updates likes", async () => {
+            const blogsAtStart = await helper.blogsInDb()
+            const blogToUpdate = blogsAtStart[0]
+            
+            const updatedData = {
+                title: blogToUpdate.title,
+                author: blogToUpdate.author,
+                url: blogToUpdate.url,
+                likes: blogToUpdate.likes + 1
+            }
+            
+            await api
+                .put(`/api/blogs/${blogToUpdate.id}`)
+                .send(updatedData)
+                .expect(200)
+                .expect("Content-Type", /application\/json/)
+            
+            const blogsAtEnd = await helper.blogsInDb()
+            const updatedBlog = blogsAtEnd.find(blog => blog.id === blogToUpdate.id)
+            
+            assert.strictEqual(updatedBlog.likes, blogToUpdate.likes + 1)
+        })
+        
+        test("fails with status 404 if blog doesnt exist", async () => {
+            const validNonExistingId = await helper.nonExistingId()
+            const updatedData = {
+                title: "Non-existing blog",
+                author: "Unknown",
+                url: "https://example.com",
+                likes: 10
+            }
+            
+            await api
+                .put(`/api/blogs/${validNonExistingId}`)
+                .send(updatedData)
+                .expect(404)
+        })
+        
+        test("fails with status 400 if id is invalid", async () => {
+            const invalidId = "notavalidid"
+            const updatedData = {
+                title: "Blog with invalid ID",
+                author: "Test author",
+                url: "https://example.com",
+                likes: 5
+            }
+            
+            await api
+                .put(`/api/blogs/${invalidId}`)
+                .send(updatedData)
+                .expect(400)
+        })
+    })
 });
 
 after(async () => {
