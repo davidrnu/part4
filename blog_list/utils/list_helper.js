@@ -21,16 +21,11 @@ const favoriteBlog = (blogs) => {
 const mostBlogs = (blogs) => {
     if (blogs.length === 0) return null
 
-    // cuantas veces aparece un autor en los blogs
     const authorCounts = {}
-    blogs.forEach(blog => { // si el autor ya esta en el
-                // objeto se le suma uno a su valor
-                // {"robert": 2}
+    blogs.forEach(blog => {
         if (authorCounts[blog.author]) {
             authorCounts[blog.author]++
-        } else { // si el autor todavia no esta, se crea 
-            // una entrada con su nombre y el numero 1
-            // {"robert": 1}
+        } else {
             authorCounts[blog.author] = 1
         }
     })
@@ -38,8 +33,8 @@ const mostBlogs = (blogs) => {
     let maxAuthor = ""
     let maxCount = 0
 
-    for (let author in authorCounts) { // se refiere a {"robert":}
-        if (authorCounts[author] > maxCount) { // se refiere a {"robert":2}
+    for (let author in authorCounts) {
+        if (authorCounts[author] > maxCount) {
             maxAuthor = author
             maxCount = authorCounts[author]
         }

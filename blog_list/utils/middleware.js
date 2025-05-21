@@ -1,3 +1,6 @@
+const jwt = require('jsonwebtoken')
+const User = require('../models/user')
+
 const unknownEndpoint = (req, res) => {
     res.status(404).send({error: "unknown endpoint"})
 }
@@ -10,6 +13,20 @@ const tokenExtractor = (req, res, next) => {
         req.token = null
     }
     next()
+}
+
+const userExtractor = async (req, res, next) => {
+    try {
+        if (req.token) {
+            const decodedToken = jwt.verify(req.token, process.env.SECRET)
+            if (decodedToken.id) {
+                req.user = await User.findById(decodedToken.id)
+            }
+        }
+        next()
+    } catch (error) {
+        next(error)
+    }
 }
 
 const errorHandler = (error, req, res, next) => {
@@ -39,5 +56,6 @@ const errorHandler = (error, req, res, next) => {
 module.exports = {
     unknownEndpoint,
     errorHandler,
-    tokenExtractor 
+    tokenExtractor,
+    userExtractor
 }

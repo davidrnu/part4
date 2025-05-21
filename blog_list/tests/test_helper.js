@@ -34,7 +34,6 @@ const blogsInDb = async () => {
     const blogs = await Blog.find({})
     return blogs.map(blog => {
         const blogObj = blog.toJSON()
-        // Convertir ObjectId a string si existe
         if (blogObj.user && typeof blogObj.user !== 'string') {
             blogObj.user = blogObj.user.toString()
         }

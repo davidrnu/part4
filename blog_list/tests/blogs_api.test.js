@@ -15,17 +15,14 @@ describe("blogs api test", () => {
     let userId;
 
     beforeEach(async () => {
-        // Limpiar blogs y usuarios
         await Blog.deleteMany({})
         await User.deleteMany({})
 
-        // Crear un usuario para testing
         const passwordHash = await bcrypt.hash('sekret', 10)
         const user = new User({ username: 'root', passwordHash })
         const savedUser = await user.save()
         userId = savedUser._id.toString()
 
-        // Inicializar blogs con el usuario creado
         for (let blog of helper.initialBlogs) {
             let blogObject = new Blog({
                 ...blog,
@@ -34,7 +31,6 @@ describe("blogs api test", () => {
             await blogObject.save()
         }
 
-        // Obtener token para el usuario
         const loginResponse = await api
             .post('/api/login')
             .send({ username: 'root', password: 'sekret' })
@@ -101,13 +97,11 @@ describe("blogs api test", () => {
                 .expect(200)
                 .expect("Content-Type", /application\/json/)
             
-            // Comparamos las propiedades individualmente excepto 'user'
             assert.strictEqual(resultBlog.body.id, blogToView.id)
             assert.strictEqual(resultBlog.body.title, blogToView.title)
             assert.strictEqual(resultBlog.body.author, blogToView.author)
             assert.strictEqual(resultBlog.body.url, blogToView.url)
             assert.strictEqual(resultBlog.body.likes, blogToView.likes)
-            // Aseguramos que exista user en algún formato
             assert(resultBlog.body.user)
         })
     
@@ -164,6 +158,24 @@ describe("blogs api test", () => {
             const blogsAtEnd = await helper.blogsInDb()
             assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length)
         })
+
+        test("fails with status 401 if token is not provided", async () => {
+            const newBlog = {
+                title: "Blog without token",
+                author: "Anonymous",
+                url: "https://example.com",
+                likes: 5
+            }
+            
+            await api
+                .post("/api/blogs")
+                .send(newBlog)
+                .expect(401)
+                .expect("Content-Type", /application\/json/)
+            
+            const blogsAtEnd = await helper.blogsInDb()
+            assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length)
+        })
     })
 
     describe("deletion of a blog", () => {
@@ -173,6 +185,7 @@ describe("blogs api test", () => {
 
             await api
                 .delete(`/api/blogs/${blogToDelete.id}`)
+                .set('Authorization', `Bearer ${token}`)
                 .expect(204)
 
             const blogsAtEnd = await helper.blogsInDb()
@@ -180,6 +193,18 @@ describe("blogs api test", () => {
             
             const contents = blogsAtEnd.map(b => b.title)
             assert(!contents.includes(blogToDelete.title))
+        })
+
+        test("fails with status 401 if token is not provided", async () => {
+            const blogsAtStart = await helper.blogsInDb()
+            const blogToDelete = blogsAtStart[0]
+
+            await api
+                .delete(`/api/blogs/${blogToDelete.id}`)
+                .expect(401)
+
+            const blogsAtEnd = await helper.blogsInDb()
+            assert.strictEqual(blogsAtEnd.length, blogsAtStart.length)
         })
     })
 

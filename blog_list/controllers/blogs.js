@@ -18,20 +18,12 @@ blogsRouter.get("/:id", async (req, res, next) => {
     }
 })
 
-
-
 blogsRouter.post("/", async (req, res, next) => {
     try {
         const body = req.body
 
-        const decodedToken = jwt.verify(req.token, process.env.SECRET)
-        if (!decodedToken.id) {
-            return res.status(401).json({ error: "token invalid" })
-        }
-        
-        const user = await User.findById(decodedToken.id)
-        if (!user) {
-            return res.status(404).json({ error: "user not found" })
+        if (!req.user) {
+            return res.status(401).json({ error: "token missing or invalid" })
         }
 
         const blog = new Blog({
@@ -39,12 +31,12 @@ blogsRouter.post("/", async (req, res, next) => {
             author: body.author,
             url: body.url,
             likes: body.likes || 0,
-            user: user._id
+            user: req.user._id
         })
         
         const savedBlog = await blog.save()
-        user.blogs = user.blogs.concat(savedBlog._id)
-        await user.save()
+        req.user.blogs = req.user.blogs.concat(savedBlog._id)
+        await req.user.save()
         res.status(201).json(savedBlog)
     } catch(exception) {
         next(exception)
@@ -53,13 +45,21 @@ blogsRouter.post("/", async (req, res, next) => {
 
 blogsRouter.delete("/:id", async (req, res, next) => {
     try {
-        const result = await Blog.findByIdAndDelete(req.params.id)
-
-        if (result)  {
-            res.status(204).end()
-        } else {
-            res.status(404).json({error: "blog not found"})
+        if (!req.user) {
+            return res.status(401).json({ error: "token missing or invalid" })
         }
+
+        const blog = await Blog.findById(req.params.id)
+        if (!blog) {
+            return res.status(404).json({ error: "blog not found" })
+        }
+
+        if (blog.user.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ error: "only the creator can delete this blog" })
+        }
+
+        await Blog.findByIdAndDelete(req.params.id)
+        res.status(204).end()
     } catch(exception) {
         next(exception)
     }
