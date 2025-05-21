@@ -5,7 +5,15 @@
   "scripts": {
     "start": "cross-env NODE_ENV=production node index.js",
     "dev": "cross-env NODE_ENV=development nodemon index.js",
-    "test": "cross-env NODE_ENV=test node --test"
+    "test": "cross-env NODE_ENV=test node --test",
+    "test:blogs": "cross-env NODE_ENV=test node --test tests/blogs_api.test.js",
+    "test:dummy": "cross-env NODE_ENV=test node --test tests/dummy.test.js",
+    "test:favorite": "cross-env NODE_ENV=test node --test tests/favoriteBlog.test.js",
+    "test:mostblogs": "cross-env NODE_ENV=test node --test tests/mostBlogs.test.js",
+    "test:mostlikes": "cross-env NODE_ENV=test node --test tests/mostLikes.test.js",
+    "test:totallikes": "cross-env NODE_ENV=test node --test tests/totalLikes.test.js",
+    "test:users": "cross-env NODE_ENV=test node --test tests/users_api.test.js",
+    "test:all": "echo \"===== DUMMY TESTS =====\" && npm run test:dummy && echo \"===== TOTAL LIKES TESTS =====\" && npm run test:totallikes && echo \"===== FAVORITE BLOG TESTS =====\" && npm run test:favorite && echo \"===== MOST BLOGS TESTS =====\" && npm run test:mostblogs && echo \"===== MOST LIKES TESTS =====\" && npm run test:mostlikes && echo \"===== USERS API TESTS =====\" && npm run test:users && echo \"===== BLOGS API TESTS =====\" && npm run test:blogs"
   },
   "author": "",
   "license": "ISC",

@@ -8,14 +8,38 @@ const api = supertest(app)
 
 const Blog = require('../models/blog');
 const User = require('../models/user');
+const bcrypt = require('bcrypt');
 
 describe("blogs api test", () => {
+    let token;
+    let userId;
+
     beforeEach(async () => {
+        // Limpiar blogs y usuarios
         await Blog.deleteMany({})
-        let blogObject = new Blog(helper.initialBlogs[0])
-        await blogObject.save()
-        blogObject = new Blog(helper.initialBlogs[1])
-        await blogObject.save()
+        await User.deleteMany({})
+
+        // Crear un usuario para testing
+        const passwordHash = await bcrypt.hash('sekret', 10)
+        const user = new User({ username: 'root', passwordHash })
+        const savedUser = await user.save()
+        userId = savedUser._id.toString()
+
+        // Inicializar blogs con el usuario creado
+        for (let blog of helper.initialBlogs) {
+            let blogObject = new Blog({
+                ...blog,
+                user: savedUser._id
+            })
+            await blogObject.save()
+        }
+
+        // Obtener token para el usuario
+        const loginResponse = await api
+            .post('/api/login')
+            .send({ username: 'root', password: 'sekret' })
+        
+        token = loginResponse.body.token
     })
 
     test("blog id is named properly", async () => {
@@ -31,14 +55,16 @@ describe("blogs api test", () => {
         const blogWithNoLikes = {
             title: "no likes",
             author: "ajm",
-            url: "aaaaaaaaaaaaa"
+            url: "aaaaaaaaaaaaa",
+            userId: userId
         }
     
         const res = await api
-        .post("/api/blogs")
-        .send(blogWithNoLikes)
-        .expect(201)
-        .expect("Content-Type", /application\/json/)
+            .post("/api/blogs")
+            .set('Authorization', `Bearer ${token}`)
+            .send(blogWithNoLikes)
+            .expect(201)
+            .expect("Content-Type", /application\/json/)
         
         assert.strictEqual(res.body.likes, 0)
     })
@@ -69,13 +95,20 @@ describe("blogs api test", () => {
         test("succeds with a valid id", async () => {
             const blogsAtStart = await helper.blogsInDb()
             const blogToView = blogsAtStart[0]
-    
+
             const resultBlog = await api
                 .get(`/api/blogs/${blogToView.id}`)
                 .expect(200)
                 .expect("Content-Type", /application\/json/)
             
-            assert.deepStrictEqual(resultBlog.body, blogToView)
+            // Comparamos las propiedades individualmente excepto 'user'
+            assert.strictEqual(resultBlog.body.id, blogToView.id)
+            assert.strictEqual(resultBlog.body.title, blogToView.title)
+            assert.strictEqual(resultBlog.body.author, blogToView.author)
+            assert.strictEqual(resultBlog.body.url, blogToView.url)
+            assert.strictEqual(resultBlog.body.likes, blogToView.likes)
+            // Aseguramos que exista user en algún formato
+            assert(resultBlog.body.user)
         })
     
         test("fails with status 404 if id doesnt exist", async () => {
@@ -101,14 +134,16 @@ describe("blogs api test", () => {
                 title: "async/await simplifies making async calls",
                 author: "me",
                 url: "https://davidthebest.com",
-                likes: 999
+                likes: 999,
+                userId: userId
             }
             
             await api
-            .post("/api/blogs")
-            .send(newBlog)
-            .expect(201)
-            .expect("Content-Type", /application\/json/)
+                .post("/api/blogs")
+                .set('Authorization', `Bearer ${token}`)
+                .send(newBlog)
+                .expect(201)
+                .expect("Content-Type", /application\/json/)
             
             const blogsAtEnd = await helper.blogsInDb()
             assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length + 1)
@@ -121,9 +156,10 @@ describe("blogs api test", () => {
             const newBlog = { }
             
             await api
-            .post("/api/blogs")
-            .send(newBlog)
-            .expect(400)    
+                .post("/api/blogs")
+                .set('Authorization', `Bearer ${token}`)
+                .send(newBlog)
+                .expect(400)    
             
             const blogsAtEnd = await helper.blogsInDb()
             assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length)

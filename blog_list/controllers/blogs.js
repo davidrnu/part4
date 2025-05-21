@@ -21,23 +21,27 @@ blogsRouter.get("/:id", async (req, res, next) => {
 
 
 blogsRouter.post("/", async (req, res, next) => {
-    const body = req.body
-
-    const decodedToken = jwt.verify(req.token, process.env.SECRET)
-    if (!decodedToken.id) {
-        return res.status(401).json({ error: "token invalid" })
-    }
-    const user = await User.findById(body.userId)
-
-    const blog = new Blog({
-        title: body.title,
-        author: body.author,
-        url: body.url,
-        likes: body.likes || 0,
-        user: user
-    })
-    
     try {
+        const body = req.body
+
+        const decodedToken = jwt.verify(req.token, process.env.SECRET)
+        if (!decodedToken.id) {
+            return res.status(401).json({ error: "token invalid" })
+        }
+        
+        const user = await User.findById(decodedToken.id)
+        if (!user) {
+            return res.status(404).json({ error: "user not found" })
+        }
+
+        const blog = new Blog({
+            title: body.title,
+            author: body.author,
+            url: body.url,
+            likes: body.likes || 0,
+            user: user._id
+        })
+        
         const savedBlog = await blog.save()
         user.blogs = user.blogs.concat(savedBlog._id)
         await user.save()
